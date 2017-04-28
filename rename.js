@@ -1,45 +1,69 @@
-const fs = require('fs')
-const path = require('path')
+const fs = require('fs'), path = require('path')
 const min_size = 51000
 
-let username = process.env.USERNAME;
-let insightPath = `C:\\Users\\${username}\\AppData\\Local\\Packages\\Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy\\LocalState\\Assets`
-let currentDir = process.cwd(), destDir = currentDir + '\\insight-pics'
+let username = process.env.USERNAME
+let insightPath,
+    currentDir = process.cwd(),
+    destDir = currentDir + '\\insight-pics'
 
-if (!fs.existsSync(destDir)) {
-    console.log('created new dir insight-pics')
-    fs.mkdirSync(destDir)
+let basePath = `C:\\Users\\${username}\\AppData\\Local\\Packages`
+let baseDirs = fs.readdirSync(basePath)
+
+let insightDir = baseDirs.filter((dirName) => {
+    let dirStrArr = dirName.split('_')
+    return dirStrArr.length === 2 && dirStrArr[0] === 'Microsoft.Windows.ContentDeliveryManager'
+})
+
+if (insightDir.length) {
+    insightPath = `C:\\Users\\${username}\\AppData\\Local\\Packages\\${insightDir[0]}\\LocalState\\Assets`
+
+    if (!fs.existsSync(insightPath)) {
+        console.log('\n### Cannot find insight directory! ')
+        return false
+    }
+} else {
+    throw '\n### Cannot find insight directory! '
+    return false
 }
 
-fs.readdir(insightPath, (read_dir_err, pics) => {
-    if (read_dir_err) throw read_dir_err
-    pics.map((pic, idx) => {
-        // console.log(pic)
-        let picPath = insightPath + '\\' + pic, destPicPath = destDir + '\\pic_' + idx + '.jpg'
-        let picInfo
+if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir)
+    console.log('Created new dir insight-pics! ')
+}
 
-        if (fs.existsSync(destPicPath)) {
-            destPicPath = destDir + '\\pic_' + idx + '_1.jpg'
+let pics = fs.readdirSync(insightPath)
+
+console.log('file list: \n', pics)
+
+pics.map((pic, idx) => {
+    let picInfo,
+        newName = 'pic_' + idx + '.jpg',
+        picPath = insightPath + '\\' + pic,
+        destPicPath = destDir + '\\pic_' + idx + '.jpg'
+
+    if (fs.existsSync(destPicPath)) {
+        newName = 'pic_' + idx + '_1.jpg'
+        destPicPath = destDir + '\\pic_' + idx + '_1.jpg'
+    }
+
+    picInfo = fs.statSync(picPath)
+
+    if (picInfo.isFile()) {
+        if (picInfo.size > min_size) {
+            copyFile(picPath, destPicPath, (err) => {
+                if (err)
+                    console.log('\n###' + err)
+                else
+                    console.log(`\n${pic} was renamed to ${newName} successfully! `)
+            })
+        } else {
+            console.log(`\n### Size of this picture ${pic} (size: ${picInfo.size}) is too small, ignored it. ###`)
         }
-
-        fs.stat(picPath, (file_stat_err, stat) => {
-            picInfo = stat
-            // console.log(picInfo.size)
-
-            if (picInfo.size > min_size) {
-                copyFile(picPath, destPicPath, (err) => {
-                    if (err) {
-                        console.log('!!!'+err+ '!!!')
-                    } else {
-                        console.log(`${pic} copied successfully!`)
-                    }
-                })
-            } else {
-                console.log(`!!! Size of this picture ${pic} (size: ${picInfo.size}) is too small, ignored it. !!!`)
-            }
-        })
-    })
+    } else {
+        console.log(`\n### ${pic} is not a file, ignored`)
+    }
 })
+
 
 function copyFile(src, target, callback) {
     let cbCalled = false;
