@@ -1,7 +1,7 @@
 const fs = require('fs'), path = require('path')
 const min_size = 51000
 
-let username = process.env.USERNAME
+let username = process.env['USERPROFILE'].split(path.sep)[2]
 let insightPath,
     currentDir = process.cwd(),
     destDir = currentDir + '\\insight-pics'
